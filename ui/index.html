@@ -338,43 +338,43 @@
         if (xhr.readyState === xhr.DONE && xhr.status === 200) {
           try {
             const userStatus = JSON.parse(xhr.responseText);
-            console.log("Received user status:", userStatus);
-            console.log("Last user status:", lastUserStatus);
             
-            // Always update if we don't have previous status, or if any key field has changed
+            // Always update if we don't have previous status, or if connection state changed
             const statusChanged = !lastUserStatus || 
               lastUserStatus.connected !== userStatus.connected ||
               lastUserStatus.loginName !== userStatus.loginName ||
-              lastUserStatus.displayName !== userStatus.displayName ||
-              (lastUserStatus.error && !userStatus.error) || // recovered from error
-              (!lastUserStatus.error && userStatus.error);   // new error occurred
+              lastUserStatus.displayName !== userStatus.displayName;
               
             if (statusChanged) {
               console.log("User status changed, updating UI");
               updateUserProfile(userStatus);
               lastUserStatus = userStatus;
-            } else {
-              console.log("No status change detected");
             }
           } catch (e) {
             console.error("Failed to parse user status:", e);
-            const errorStatus = {connected: false, error: "Parse error"};
+            const errorStatus = {connected: false};
+            if (!lastUserStatus || lastUserStatus.connected !== false) {
+              updateUserProfile(errorStatus);
+              lastUserStatus = errorStatus;
+            }
+          }
+        } else {
+          // Any non-200 response means disconnected
+          const errorStatus = {connected: false};
+          if (!lastUserStatus || lastUserStatus.connected !== false) {
             updateUserProfile(errorStatus);
             lastUserStatus = errorStatus;
           }
-        } else {
-          console.log("Request failed with status:", xhr.status);
-          const errorStatus = {connected: false, error: "Request failed"};
-          updateUserProfile(errorStatus);
-          lastUserStatus = errorStatus;
         }
       };
       
       xhr.onerror = xhr.ontimeout = xhr.onabort = function() {
-        console.log("Network error occurred");
-        const errorStatus = {connected: false, error: "Network error"};
-        updateUserProfile(errorStatus);
-        lastUserStatus = errorStatus;
+        // Network error means disconnected
+        const errorStatus = {connected: false};
+        if (!lastUserStatus || lastUserStatus.connected !== false) {
+          updateUserProfile(errorStatus);
+          lastUserStatus = errorStatus;
+        }
       };
       
       xhr.open("GET", "/api/user");
